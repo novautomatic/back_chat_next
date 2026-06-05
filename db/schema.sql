@@ -148,10 +148,12 @@ create index if not exists idx_fragmentos_agente    on public.fragmentos(agente_
 create index if not exists idx_conv_client          on public.conversaciones(client_id);
 create index if not exists idx_mensajes_conv        on public.mensajes(conversacion_id);
 
--- Indice vectorial (IVFFlat, distancia coseno). Requiere datos para entrenar;
--- crear de todas formas; mejorar con 'lists' segun volumen.
+-- Indice vectorial HNSW (distancia coseno). A diferencia de IVFFlat, funciona
+-- bien aunque haya pocas filas (IVFFlat con lists alto y pocos datos devuelve
+-- resultados vacios). Nota: el backend ademas calcula la similitud en memoria
+-- para catalogos pequeños/medianos por cliente (ver src/services/rag.js).
 create index if not exists idx_fragmentos_embedding
-  on public.fragmentos using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+  on public.fragmentos using hnsw (embedding vector_cosine_ops);
 
 -- ============================================================================
 --  HELPERS de seguridad (leen el perfil del usuario autenticado)

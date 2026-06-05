@@ -3,8 +3,9 @@
 import { admin } from '../lib/supabase.js';
 import { embed } from '../lib/openai.js';
 
-// Trocea texto en chunks de ~chars con solape.
-function trocear(texto, chars = 1200, solape = 150) {
+// Trocea texto en chunks de ~chars con solape. Chunks grandes para que cada
+// documento corto (ej: una linea de producto con todos sus colores) quede entero.
+function trocear(texto, chars = 4000, solape = 200) {
   const limpio = (texto || '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
   const chunks = [];
   let i = 0;

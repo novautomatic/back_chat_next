@@ -39,7 +39,7 @@ export async function responder({ conversacion, agenteId, textoUsuario }) {
   // 2) Cerebro + RAG + historial (en paralelo donde se pueda).
   const [cerebro, contexto, { data: historial }] = await Promise.all([
     cargarCerebro(agenteId),
-    recuperarContexto(agenteId, textoUsuario, 5),
+    recuperarContexto(agenteId, textoUsuario, 8),
     admin.from('mensajes')
       .select('rol, contenido')
       .eq('conversacion_id', convId)
