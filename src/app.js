@@ -10,8 +10,14 @@ import flujosRoutes from './routes/flujos.js';
 import documentosRoutes from './routes/documentos.js';
 import conversacionesRoutes from './routes/conversaciones.js';
 import widgetRoutes from './routes/widget.js';
+import integracionesRoutes from './routes/integraciones.js';
+import webhooksRoutes from './routes/webhooks.js';
 
 const app = express();
+
+// Webhooks ANTES del json global: necesitan el body crudo para validar el HMAC
+// (el router usa su propio express.raw). No deben pasar por express.json().
+app.use('/webhooks', webhooksRoutes);
 
 app.use(express.json({ limit: '2mb' }));
 
@@ -30,6 +36,7 @@ app.use('/flujos', flujosRoutes);
 app.use('/documentos', documentosRoutes);
 app.use('/conversaciones', conversacionesRoutes);
 app.use('/widget', widgetRoutes);
+app.use('/integraciones', integracionesRoutes);
 
 // 404 + manejador de errores.
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));

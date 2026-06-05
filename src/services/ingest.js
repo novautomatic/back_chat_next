@@ -29,6 +29,8 @@ function htmlAtexto(html) {
 
 async function obtenerTexto(doc) {
   if (doc.tipo === 'texto') return doc.contenido || '';
+  // Shopify: el contenido ya viene formateado por el sync/webhook.
+  if (doc.tipo === 'shopify') return doc.contenido || '';
   if (doc.tipo === 'url') {
     const res = await fetch(doc.fuente, { headers: { 'User-Agent': 'AgenteBot/1.0' } });
     if (!res.ok) throw new Error(`URL respondio ${res.status}`);

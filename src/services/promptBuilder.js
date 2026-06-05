@@ -32,6 +32,9 @@ export function construirSystemPrompt({ agente, reglas, ejemplos }, contextoRag)
   p += bloqueReglas('Reglas durante el PROCESO de la conversacion', porFase('proceso'));
   p += bloqueReglas('Reglas para FINALIZAR la conversacion', porFase('finalizacion'));
   p += bloqueReglas('Reglas GENERALES', porFase('general'));
+  p += bloqueReglas('CASOS / automatizaciones (si ocurre la condicion, aplica la accion)', porFase('casos'));
+  p += bloqueReglas('PROMOCIONES vigentes (mencionalas cuando sea relevante)', porFase('promociones'));
+  p += bloqueReglas('PRODUCTOS NUEVOS o destacados (impulsalos cuando encaje)', porFase('productos_nuevos'));
 
   // Instrucciones + FORMATO DE SALIDA: vienen 100% de la base de datos (campo
   // instrucciones_extra). NINGUNA regla ni formato esta escrito en el codigo.
