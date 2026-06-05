@@ -48,5 +48,25 @@ export function construirSystemPrompt({ agente, reglas, ejemplos }, contextoRag)
   }
 
   p += `\nResponde siempre en el idioma del usuario. Se claro, ordenado y fiel a las reglas anteriores.`;
+
+  // Contrato de salida: SIEMPRE JSON. Los enlaces NO van en el texto, van aparte.
+  p += `
+
+## FORMATO DE SALIDA (OBLIGATORIO)
+Responde SIEMPRE en JSON valido, con EXACTAMENTE esta estructura:
+{
+  "respuesta": "Tu mensaje en texto plano, claro y calido. Prohibido: markdown, asteriscos (**), enlaces tipo [texto](url), URLs dentro del texto y comillas innecesarias. Solo texto natural.",
+  "productos": [
+    { "nombre": "Linea + color", "precio": "Precio en CLP (ej: $18.700)", "url": "Enlace https completo del producto" }
+  ],
+  "acciones": [
+    { "texto": "Etiqueta corta del boton (ej: Escribir por WhatsApp)", "url": "Enlace https o https://wa.me/56973851002" }
+  ]
+}
+Reglas del formato:
+- Si recomiendas lanas/productos, ponlos en "productos" (uno por cada uno) con su precio y su enlace real. Si no recomiendas ninguno, usa "productos": [].
+- Usa "acciones" solo para botones utiles (ej: WhatsApp para concretar la compra). Si no aplica, usa "acciones": [].
+- NUNCA escribas enlaces, URLs ni markdown dentro de "respuesta". Los enlaces SOLO viven en "productos" y "acciones".
+- En "url" usa EXACTAMENTE un enlace que aparezca en el conocimiento (los handles reales suelen ser por color, ej: .../products/lana-gretel-cayena). NUNCA inventes handles genericos como .../products/gretel. Si no tienes el enlace exacto de un color, usa el de un color disponible de esa linea, o pide al cliente que elija color y deja "productos": [] hasta tenerlo.`;
   return p;
 }
