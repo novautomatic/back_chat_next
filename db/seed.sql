@@ -2,12 +2,13 @@
 --  SEED: convertir tu usuario en SUPER ADMIN
 --  Pasos:
 --   1) Crea el usuario en Supabase Studio > Authentication > Users > Add user
---      (email: pbezama@crecetec.com, define una contraseña).
+--      (email: fabianignacio.tm@gmail.com, define una contraseña).
 --   2) Ejecuta esto en SQL Editor para promoverlo a super_admin.
+--  (Alternativa automatica: node scripts/setup.js fabianignacio.tm@gmail.com <password>)
 -- ============================================================================
 update public.perfiles
-set rol = 'super_admin', client_id = null, nombre = 'Pedro (Super Admin)'
-where email = 'pbezama@crecetec.com';
+set rol = 'super_admin', client_id = null, nombre = 'Super Admin'
+where email = 'fabianignacio.tm@gmail.com';
 
 -- Verificar:
 -- select id, email, rol, client_id from public.perfiles;
