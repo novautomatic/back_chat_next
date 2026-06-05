@@ -17,11 +17,21 @@ function handleDeUrl(url) {
 async function soloProductosConEnlaceReal(agenteId, productos) {
   if (!productos.length) return [];
   const { data: docs } = await admin.from('documentos').select('contenido').eq('agente_id', agenteId);
-  const conocimiento = (docs || []).map((d) => (d.contenido || '')).join(' ').toLowerCase();
+  const conocimiento = (docs || []).map((d) => (d.contenido || '')).join(' ');
   // Handles validos = tokens completos "algo-algo(-algo...)" presentes en el conocimiento.
   // Coincidencia EXACTA: evita que "lana-jazmine" pase por ser parte de "lana-jazmine-te-con-leche".
-  const validos = new Set(conocimiento.match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || []);
-  return productos.filter((p) => p && validos.has(handleDeUrl(p.url)));
+  const validos = new Set((conocimiento.toLowerCase().match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || []));
+  // Base real de la URL de producto, derivada del conocimiento (ej: https://dyetales.cl/products/).
+  const base = (conocimiento.match(/https?:\/\/\S+?\/products\//i) || [null])[0];
+  return productos
+    .map((p) => {
+      if (!p) return null;
+      const handle = handleDeUrl(p.url);
+      if (!validos.has(handle)) return null;
+      // Reconstruye la URL canonica para que NUNCA falte /products/ ni quede mal armada.
+      return base ? { ...p, url: base + handle } : p;
+    })
+    .filter(Boolean);
 }
 
 export async function responder({ conversacion, agenteId, textoUsuario }) {
@@ -87,6 +97,12 @@ export async function responder({ conversacion, agenteId, textoUsuario }) {
   // 4b) Anti-enlaces-inventados: descarta productos cuyo enlace NO exista en el
   //     conocimiento del agente. El conocimiento es la unica fuente de verdad.
   productos = await soloProductosConEnlaceReal(agenteId, productos);
+
+  // 4c) Red de seguridad: nunca dejar pasar acciones/botones de WhatsApp.
+  acciones = acciones.filter((a) => a && !/wa\.me|whatsapp|56973851002/i.test(`${a.url || ''} ${a.texto || ''}`));
+
+  // 4d) Limpiar URLs que el modelo haya metido dentro del texto (los enlaces van en productos).
+  respuesta = String(respuesta).replace(/\s*https?:\/\/\S+/gi, '').replace(/[ \t]{2,}/g, ' ').trim();
 
   // 5) Guardar solo el texto (transcripcion legible) y emitir el mensaje completo.
   await admin.from('mensajes').insert({

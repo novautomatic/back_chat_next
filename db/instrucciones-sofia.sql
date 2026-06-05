@@ -1,16 +1,7 @@
-// Pone TODO el comportamiento (formato JSON, politica de enlaces, idioma, saludo,
-// restricciones, mensajes, cierre) en la BD (agentes.instrucciones_extra).
-// Asi NADA queda hardcodeado en el codigo.
-import 'dotenv/config';
-import { writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { admin } from '../src/lib/supabase.js';
-
-const AGENTE_ID = '51d2d1fe-e8db-4388-9365-95cecb571517';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export const INSTRUCCIONES = `IDIOMA: Responde siempre en el idioma del usuario.
+-- Comportamiento del agente Sofía (formato JSON, productos/enlaces, sin WhatsApp).
+-- SEGURO de re-correr: solo hace UPDATE, no borra documentos ni fragmentos.
+UPDATE public.agentes
+SET instrucciones_extra = $s$IDIOMA: Responde siempre en el idioma del usuario.
 
 SALUDO: Saluda solo en tu PRIMER mensaje de la conversacion. En los siguientes responde directo, sin volver a saludar ni presentarte.
 
@@ -49,40 +40,10 @@ FORMATO DE SALIDA (OBLIGATORIO): Responde SIEMPRE en JSON valido con esta estruc
 {"respuesta": "texto plano, claro y calido, sin markdown ni enlaces", "productos": [{"nombre": "linea + color", "precio": "$precio CLP", "url": "enlace https real del producto en la web"}], "acciones": []}
 - "respuesta": solo texto natural, sin enlaces ni markdown.
 - "productos": pon aqui la(s) lana(s) recomendada(s) con su enlace directo. [] si no corresponde.
-- "acciones": dejalo SIEMPRE vacio []. NUNCA pongas WhatsApp ni telefonos.`;
-
-function generarSQL() {
-  return `-- Comportamiento del agente Sofía (formato JSON, productos/enlaces, sin WhatsApp).
--- SEGURO de re-correr: solo hace UPDATE, no borra documentos ni fragmentos.
-UPDATE public.agentes
-SET instrucciones_extra = $s$${INSTRUCCIONES}$s$
-WHERE id = '${AGENTE_ID}';
+- "acciones": dejalo SIEMPRE vacio []. NUNCA pongas WhatsApp ni telefonos.$s$
+WHERE id = '51d2d1fe-e8db-4388-9365-95cecb571517';
 
 -- Quitar WhatsApp de las reglas (reemplaza la que derive a WhatsApp).
 UPDATE public.agente_reglas
 SET texto = $s$Para concretar la compra, comparte el enlace directo del producto para que el cliente compre en la web.$s$
-WHERE agente_id = '${AGENTE_ID}' AND (texto ILIKE '%whatsapp%' OR texto ILIKE '%5697385%');
-`;
-}
-
-async function main() {
-  writeFileSync(join(__dirname, '..', 'db', 'instrucciones-sofia.sql'), generarSQL(), 'utf8');
-  console.log('SQL escrito en db/instrucciones-sofia.sql ✓');
-
-  const { error } = await admin.from('agentes').update({ instrucciones_extra: INSTRUCCIONES }).eq('id', AGENTE_ID);
-  if (error) throw new Error(error.message);
-  console.log('✓ instrucciones_extra (sin WhatsApp, link siempre) guardado en la BD.');
-
-  // Quitar WhatsApp de las reglas: reemplazar cualquier regla que lo mencione.
-  const { data: reglas } = await admin.from('agente_reglas').select('id, texto').eq('agente_id', AGENTE_ID);
-  for (const r of reglas || []) {
-    if (/whatsapp|\+?5697385/i.test(r.texto)) {
-      await admin.from('agente_reglas').update({
-        texto: 'Para concretar la compra, comparte el enlace directo del producto para que el cliente compre en la web.',
-      }).eq('id', r.id);
-      console.log('✓ Regla con WhatsApp reemplazada.');
-    }
-  }
-}
-
-main().catch((e) => { console.error('✗', e.message); process.exit(1); });
+WHERE agente_id = '51d2d1fe-e8db-4388-9365-95cecb571517' AND (texto ILIKE '%whatsapp%' OR texto ILIKE '%5697385%');
