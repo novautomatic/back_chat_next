@@ -53,10 +53,7 @@ export async function responder({ conversacion, agenteId, textoUsuario }) {
 
     for await (const chunk of stream) {
       const delta = chunk.choices?.[0]?.delta?.content || '';
-      if (delta) {
-        completo += delta;
-        await broadcast(convId, 'token', { delta });
-      }
+      if (delta) completo += delta;
     }
   } catch (e) {
     console.error('[orchestrator] openai', e.message);

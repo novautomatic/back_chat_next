@@ -26,7 +26,7 @@ export function construirSystemPrompt({ agente, reglas, ejemplos }, contextoRag)
   p += `Eres un asistente conversacional llamado "${agente.nombre}".\n`;
   if (agente.persona) p += `\n## Personalidad y rol\n${agente.persona}\n`;
   if (agente.objetivo) p += `\n## Objetivo de la conversacion\n${agente.objetivo}\n`;
-  if (agente.saludo) p += `\n## Saludo inicial\nAl iniciar, saluda asi (adaptalo con naturalidad): "${agente.saludo}"\n`;
+  if (agente.saludo) p += `\n## Saludo inicial\nSOLO en tu PRIMER mensaje de la conversacion saluda asi (adaptalo con naturalidad): "${agente.saludo}". En los mensajes siguientes NO vuelvas a saludar ni a presentarte: responde directo a lo que pregunta.\n`;
 
   p += bloqueReglas('Reglas de INICIO de la conversacion', porFase('inicio'));
   p += bloqueReglas('Reglas durante el PROCESO de la conversacion', porFase('proceso'));
