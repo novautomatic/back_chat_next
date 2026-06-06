@@ -18,6 +18,25 @@ router.get('/', async (req, res) => {
   res.json(data);
 });
 
+// Ver el contenido extraído/indexado de un documento (los fragmentos vectorizados).
+// Para texto/shopify el contenido también vive en documentos.contenido, pero para
+// url/archivo el texto extraído solo queda en fragmentos, así que esta es la forma
+// de inspeccionar "qué se sacó realmente" de la página o el archivo.
+router.get('/:id/fragmentos', async (req, res) => {
+  const { data: doc } = await admin
+    .from('documentos').select('id, client_id').eq('id', req.params.id).single();
+  if (!doc || doc.client_id !== cid(req)) return res.status(404).json({ error: 'No encontrado' });
+
+  const { data, error } = await admin
+    .from('fragmentos')
+    .select('id, orden, contenido')
+    .eq('documento_id', req.params.id)
+    .eq('client_id', cid(req))
+    .order('orden', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // Pedir una URL firmada para subir un archivo al bucket "conocimiento".
 // Devuelve { path, token, signedUrl } -> el front sube el archivo directo a Storage.
 router.post('/upload-url', async (req, res) => {
