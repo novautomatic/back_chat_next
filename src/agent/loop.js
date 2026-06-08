@@ -7,6 +7,7 @@
 import { openai } from '../lib/openai.js';
 import { resumirTexto } from '../services/tracing.js';
 import { openaiSchemasFor, ejecutar, TOOL_TERMINAL, TOOL_DELEGAR } from './toolRegistry.js';
+import { parseSalida } from './parseSalida.js';
 
 const MAX_PASOS_HARD = 8; // tope absoluto de seguridad (Vercel serverless)
 
@@ -22,21 +23,9 @@ function salidaResumida(obj) {
 
 // Red de seguridad: si el modelo respondio en TEXTO (sin usar responder_al_usuario)
 // y ese texto es un JSON tipo {respuesta, productos, acciones} (porque el agente
-// fue configurado para devolver JSON), lo extraemos. Si no, es texto normal.
-function extraerSalida(content) {
-  const texto = content || '';
-  try {
-    const o = JSON.parse(texto);
-    if (o && typeof o === 'object' && (o.respuesta || o.contenido || o.mensaje || o.productos || o.acciones)) {
-      return {
-        respuesta: o.respuesta ?? o.contenido ?? o.mensaje ?? '',
-        productos: Array.isArray(o.productos) ? o.productos : [],
-        acciones: Array.isArray(o.acciones) ? o.acciones : [],
-      };
-    }
-  } catch { /* no era JSON: texto normal */ }
-  return { respuesta: texto, productos: [], acciones: [] };
-}
+// fue configurado para devolver JSON), lo extraemos. El parser tolera JSON
+// envuelto en texto/code-fences o truncado y nunca devuelve el JSON crudo.
+const extraerSalida = (content) => parseSalida(content);
 
 // agente: fila de `agentes`. messages: [system, ...historial] (ya incluye el
 // ultimo mensaje del usuario). ctx: { clientId, agenteId, conversacionId }.

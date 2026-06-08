@@ -15,6 +15,7 @@ import { recuperarContexto } from './rag.js';
 import { nuevoTurno, registrarPaso, resumirTexto } from './tracing.js';
 import { postprocesar } from '../agent/postproceso.js';
 import { ejecutarLoop } from '../agent/loop.js';
+import { parseSalida } from '../agent/parseSalida.js';
 import { cargarConfigs } from '../agent/toolRegistry.js';
 import { derivarVisitanteKey, recuperarMemoria, actualizarResumen } from './memory.js';
 import { cargarEquipo, elegirAgente, resolverDestino, descripcionMiembro } from './router.js';
@@ -55,15 +56,9 @@ async function motorClasico({ agente, system, previos, textoUsuario, contexto })
   const raw = completion.choices?.[0]?.message?.content || '';
   const usage = completion.usage;
 
-  let respuesta = raw, productos = [], acciones = [];
-  try {
-    const obj = JSON.parse(raw);
-    respuesta = obj.respuesta ?? obj.contenido ?? obj.mensaje ?? raw;
-    if (Array.isArray(obj.productos)) productos = obj.productos;
-    if (Array.isArray(obj.acciones)) acciones = obj.acciones;
-  } catch {
-    // Si no vino JSON valido, usamos el texto crudo como respuesta.
-  }
+  // Parser robusto: tolera JSON envuelto en texto/code-fences o truncado, y
+  // NUNCA vuelca el JSON crudo al usuario (ver agent/parseSalida.js).
+  const { respuesta, productos, acciones } = parseSalida(raw);
 
   const trazas = [{
     tipo: 'llm', nombre: modelo, modelo,
