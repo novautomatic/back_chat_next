@@ -145,6 +145,22 @@ export async function fetchProductByLegacyId(integracion, legacyId) {
   return data?.node || null;
 }
 
+const PRODUCTS_SEARCH = `
+  query Buscar($q: String!, $n: Int!) {
+    products(first: $n, query: $q) {
+      nodes { ${PRODUCT_FIELDS} }
+    }
+  }
+`;
+
+// Busca productos EN VIVO por termino (precio y stock al momento). Usa la
+// sintaxis de busqueda de Shopify; devuelve hasta `limit` productos.
+export async function searchProducts(integracion, termino, limit = 5) {
+  const q = String(termino || '').trim();
+  const data = await shopifyGraphQL(integracion, PRODUCTS_SEARCH, { q, n: Math.min(Number(limit) || 5, 20) });
+  return data?.products?.nodes || [];
+}
+
 const WEBHOOK_TOPICS = ['PRODUCTS_CREATE', 'PRODUCTS_UPDATE', 'PRODUCTS_DELETE'];
 
 const WEBHOOK_CREATE = `

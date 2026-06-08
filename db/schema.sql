@@ -60,6 +60,25 @@ create table if not exists public.agente_reglas (
   created_at timestamptz not null default now()
 );
 
+-- Bloques que el cliente crea. Dos areas usan esta misma tabla:
+--   area = 'etapa' -> Etapas de la conversacion (momento del cliente: compra,
+--                     postventa, agendar cita...). descripcion = "cuando aplica".
+--   area = 'zona'  -> Secciones de "Conocimiento y reglas" (cuadrados extra).
+-- Las reglas del bloque se guardan en agente_reglas con fase = id de la fila.
+create table if not exists public.agente_secciones (
+  id          uuid primary key default uuid_generate_v4(),
+  client_id   uuid not null references public.clientes(id) on delete cascade,
+  agente_id   uuid not null references public.agentes(id) on delete cascade,
+  titulo      text not null,
+  descripcion text,
+  icono       text not null default '📋',
+  color       text not null default 'slate', -- amber|rose|cyan|emerald|violet|sky|indigo|slate
+  tipo        text not null default 'simple', -- simple | caso
+  area        text not null default 'zona',   -- etapa | zona
+  orden       int  not null default 0,
+  created_at  timestamptz not null default now()
+);
+
 -- Ejemplos few-shot (dialogos modelo: "asi se saluda", etc.)
 create table if not exists public.agente_ejemplos (
   id         uuid primary key default uuid_generate_v4(),
@@ -82,7 +101,7 @@ create table if not exists public.flujos (
   trigger_tipo    text not null default 'inicio_conversacion', -- inicio_conversacion | palabra_clave
   trigger_palabras jsonb not null default '[]'::jsonb,
   widget_key      uuid not null default uuid_generate_v4() unique, -- clave publica del embed
-  config_widget   jsonb not null default '{}'::jsonb,     -- colores, bienvenida, posicion, captura lead
+  config_widget   jsonb not null default '{}'::jsonb,     -- titulo, color, posicion, icono (url del chat), bienvenida, captura lead
   activo          boolean not null default true,
   created_at      timestamptz not null default now()
 );
@@ -141,6 +160,8 @@ create table if not exists public.mensajes (
 -- Indices utiles -------------------------------------------------------------
 create index if not exists idx_agentes_client       on public.agentes(client_id);
 create index if not exists idx_reglas_agente        on public.agente_reglas(agente_id);
+create index if not exists idx_secciones_agente     on public.agente_secciones(agente_id);
+create index if not exists idx_secciones_area       on public.agente_secciones(agente_id, area);
 create index if not exists idx_ejemplos_agente      on public.agente_ejemplos(agente_id);
 create index if not exists idx_flujos_client        on public.flujos(client_id);
 create index if not exists idx_documentos_agente    on public.documentos(agente_id);
@@ -194,6 +215,7 @@ alter table public.clientes        enable row level security;
 alter table public.perfiles        enable row level security;
 alter table public.agentes         enable row level security;
 alter table public.agente_reglas   enable row level security;
+alter table public.agente_secciones enable row level security;
 alter table public.agente_ejemplos enable row level security;
 alter table public.flujos          enable row level security;
 alter table public.documentos      enable row level security;
@@ -217,7 +239,7 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'agentes','agente_reglas','agente_ejemplos','flujos',
+    'agentes','agente_reglas','agente_secciones','agente_ejemplos','flujos',
     'documentos','fragmentos','conversaciones','mensajes'
   ] loop
     execute format('drop policy if exists %I_rw on public.%I;', t, t);

@@ -58,6 +58,18 @@ async function main() {
     console.log('• Bucket "conocimiento" listo.');
   }
 
+  // 4) Crear el bucket PUBLICO de iconos del chat (se muestran en webs externas).
+  const { error: e4 } = await admin.storage.createBucket('widget', {
+    public: true,
+    fileSizeLimit: '2MB',
+    allowedMimeTypes: ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp', 'image/gif'],
+  });
+  if (e4 && !/already exists/i.test(e4.message)) {
+    console.warn('• Aviso bucket widget:', e4.message);
+  } else {
+    console.log('• Bucket publico "widget" listo (iconos del chat).');
+  }
+
   console.log(`\n✓ Setup completo. Inicia sesion en el front con: ${email}`);
 }
 

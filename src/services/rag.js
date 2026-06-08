@@ -5,13 +5,13 @@
 import { admin } from '../lib/supabase.js';
 import { embed } from '../lib/openai.js';
 
-function aVector(emb) {
+export function aVector(emb) {
   if (Array.isArray(emb)) return emb;
   if (typeof emb === 'string') { try { return JSON.parse(emb); } catch { return null; } }
   return null;
 }
 
-function cosine(a, b) {
+export function cosine(a, b) {
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
   const den = Math.sqrt(na) * Math.sqrt(nb);

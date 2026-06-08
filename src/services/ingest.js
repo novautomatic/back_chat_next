@@ -28,6 +28,8 @@ function htmlAtexto(html) {
 }
 
 async function obtenerTexto(doc) {
+  // Editado a mano: el contenido manual manda (no se re-extrae de la fuente).
+  if (doc.bloqueado) return doc.contenido || '';
   if (doc.tipo === 'texto') return doc.contenido || '';
   // Shopify: el contenido ya viene formateado por el sync/webhook.
   if (doc.tipo === 'shopify') return doc.contenido || '';

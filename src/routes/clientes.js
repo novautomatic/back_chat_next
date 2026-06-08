@@ -16,6 +16,17 @@ router.get('/', async (_req, res) => {
   res.json(data);
 });
 
+// Todos los flujos testeables (con su agente y cliente), para "Probar agente"
+// del super admin: una lista global cruzando todos los clientes.
+router.get('/flujos-todos', async (_req, res) => {
+  const { data, error } = await admin
+    .from('flujos')
+    .select('id, nombre, widget_key, activo, agente_id, agentes(nombre), clientes(nombre)')
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // Crear cliente.
 router.post('/', async (req, res) => {
   const { nombre, email_contacto, plan } = req.body;

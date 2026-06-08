@@ -7,15 +7,19 @@ export async function resolveWidget(req, res, next) {
     const { widget_key } = req.params;
     if (!widget_key) return res.status(400).json({ error: 'Falta widget_key' });
 
+    // select('*') para ser resiliente a columnas nuevas (ej. equipo_id) aunque
+    // la migracion aun no se haya aplicado en esta BD.
     const { data: flujo, error } = await admin
       .from('flujos')
-      .select('id, client_id, agente_id, nombre, canal, config_widget, activo')
+      .select('*')
       .eq('widget_key', widget_key)
       .single();
 
     if (error || !flujo) return res.status(404).json({ error: 'Widget no encontrado' });
     if (!flujo.activo) return res.status(403).json({ error: 'Widget inactivo' });
-    if (!flujo.agente_id) return res.status(409).json({ error: 'El flujo no tiene un agente asignado' });
+    if (!flujo.agente_id && !flujo.equipo_id) {
+      return res.status(409).json({ error: 'El flujo no tiene un agente ni un equipo asignado' });
+    }
 
     req.flujo = flujo;
     next();

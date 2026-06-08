@@ -49,7 +49,31 @@ router.post('/:widget_key/mensaje', resolveWidget, async (req, res) => {
     return res.status(404).json({ error: 'Conversacion no valida' });
   }
 
-  await responder({ conversacion: conv, agenteId: req.flujo.agente_id, textoUsuario: texto });
+  await responder({ conversacion: conv, flujo: req.flujo, agenteId: req.flujo.agente_id, textoUsuario: texto });
+  res.json({ ok: true });
+});
+
+// Feedback del visitante sobre una respuesta del agente (pulgar arriba/abajo).
+router.post('/:widget_key/feedback', resolveWidget, async (req, res) => {
+  const { mensaje_id, valor, comentario } = req.body || {};
+  const v = Number(valor);
+  if (!mensaje_id || (v !== 1 && v !== -1)) {
+    return res.status(400).json({ error: 'Falta mensaje_id o valor invalido (1 | -1)' });
+  }
+  // Validar que el mensaje pertenezca a una conversacion del cliente del flujo.
+  const { data: msg } = await admin
+    .from('mensajes').select('id, conversacion_id, client_id').eq('id', mensaje_id).single();
+  if (!msg || msg.client_id !== req.flujo.client_id) {
+    return res.status(404).json({ error: 'Mensaje no valido' });
+  }
+  const { error } = await admin.from('feedback').insert({
+    client_id: req.flujo.client_id,
+    conversacion_id: msg.conversacion_id,
+    mensaje_id,
+    valor: v,
+    comentario: comentario || null,
+  });
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 

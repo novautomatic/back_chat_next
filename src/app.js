@@ -12,6 +12,11 @@ import conversacionesRoutes from './routes/conversaciones.js';
 import widgetRoutes from './routes/widget.js';
 import integracionesRoutes from './routes/integraciones.js';
 import webhooksRoutes from './routes/webhooks.js';
+import trazasRoutes from './routes/trazas.js';
+import leadsRoutes from './routes/leads.js';
+import equiposRoutes from './routes/equipos.js';
+import evalsRoutes from './routes/evals.js';
+import adminToolsRoutes from './routes/adminTools.js';
 
 const app = express();
 
@@ -37,6 +42,11 @@ app.use('/documentos', documentosRoutes);
 app.use('/conversaciones', conversacionesRoutes);
 app.use('/widget', widgetRoutes);
 app.use('/integraciones', integracionesRoutes);
+app.use('/trazas', trazasRoutes);
+app.use('/leads', leadsRoutes);
+app.use('/equipos', equiposRoutes);
+app.use('/evals', evalsRoutes);
+app.use('/admin/tools', adminToolsRoutes);
 
 // 404 + manejador de errores.
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));

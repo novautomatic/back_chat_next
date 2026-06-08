@@ -79,10 +79,13 @@ export async function upsertProductoDoc(integracion, product) {
 
   const { data: existente } = await admin
     .from('documentos')
-    .select('id')
+    .select('id, bloqueado')
     .eq('agente_id', integracion.agente_id)
     .eq('fuente', fuente)
     .maybeSingle();
+
+  // Editado a mano: no lo sobreescribimos con los datos de Shopify.
+  if (existente?.bloqueado) return existente.id;
 
   let docId;
   if (existente) {
@@ -119,12 +122,18 @@ export async function sincronizarTienda(integracionId) {
   try {
     const productos = await fetchAllProducts(integ);
 
-    // Reemplazo limpio de los productos de Shopify de este agente.
-    await admin.from('documentos').delete()
-      .eq('agente_id', integ.agente_id).eq('tipo', 'shopify');
+    // Productos editados a mano (bloqueado): NO se borran ni se reemplazan.
+    const { data: bloqueados } = await admin.from('documentos')
+      .select('fuente').eq('agente_id', integ.agente_id).eq('tipo', 'shopify').eq('bloqueado', true);
+    const fuentesBloqueadas = new Set((bloqueados || []).map((d) => d.fuente));
 
-    if (productos.length) {
-      const filas = productos.map((p) => ({
+    // Reemplazo limpio de los productos de Shopify NO bloqueados.
+    await admin.from('documentos').delete()
+      .eq('agente_id', integ.agente_id).eq('tipo', 'shopify').neq('bloqueado', true);
+
+    const nuevos = productos.filter((p) => !fuentesBloqueadas.has(fuenteDe(p)));
+    if (nuevos.length) {
+      const filas = nuevos.map((p) => ({
         client_id: integ.client_id,
         agente_id: integ.agente_id,
         tipo: 'shopify',

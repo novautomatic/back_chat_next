@@ -63,6 +63,28 @@ router.post('/', async (req, res) => {
   res.status(201).json(data);
 });
 
+// Editar un documento (título y/o contenido). Marca bloqueado=true (la edición
+// manual manda sobre la fuente) y re-vectoriza. Sirve para texto, url, archivo y
+// productos Shopify: tras editar, la re-sync ya NO sobreescribe este documento.
+router.patch('/:id', async (req, res) => {
+  const { data: doc } = await admin.from('documentos').select('id, client_id').eq('id', req.params.id).single();
+  if (!doc || doc.client_id !== cid(req)) return res.status(404).json({ error: 'No encontrado' });
+
+  const { titulo, contenido, bloqueado } = req.body || {};
+  const update = { estado: 'pendiente', error_msg: null };
+  if (typeof titulo === 'string') update.titulo = titulo;
+  if (typeof contenido === 'string') update.contenido = contenido;
+  // Por defecto, editar bloquea (preserva el cambio); permite desbloquear explícito.
+  update.bloqueado = bloqueado !== false;
+
+  const { data, error } = await admin.from('documentos').update(update)
+    .eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  procesarDocumento(req.params.id); // re-vectoriza en segundo plano
+  res.json(data);
+});
+
 // Re-procesar.
 router.post('/:id/reprocesar', async (req, res) => {
   const { data } = await admin.from('documentos').select('id, client_id').eq('id', req.params.id).single();

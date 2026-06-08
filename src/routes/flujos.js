@@ -22,6 +22,20 @@ router.get('/:id', async (req, res) => {
   res.json(data);
 });
 
+// URL firmada para subir el ICONO del chat al bucket PUBLICO "widget".
+// Devuelve { path, token, publicUrl } -> el front sube directo y guarda la
+// publicUrl en config_widget.icono.
+router.post('/icono-upload-url', async (req, res) => {
+  const { agente_id, filename } = req.body || {};
+  if (!filename) return res.status(400).json({ error: 'Falta filename' });
+  const safe = String(filename).replace(/[^\w.-]+/g, '_');
+  const path = `${cid(req)}/${agente_id || 'sin-agente'}/${Date.now()}-${safe}`;
+  const { data, error } = await admin.storage.from('widget').createSignedUploadUrl(path);
+  if (error) return res.status(500).json({ error: error.message });
+  const { data: pub } = admin.storage.from('widget').getPublicUrl(path);
+  res.json({ path, publicUrl: pub.publicUrl, ...data });
+});
+
 router.post('/', async (req, res) => {
   const b = req.body;
   const { data, error } = await admin.from('flujos').insert({
@@ -41,11 +55,12 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const b = req.body;
-  const { data, error } = await admin.from('flujos').update({
-    agente_id: b.agente_id, nombre: b.nombre, descripcion: b.descripcion,
-    trigger_tipo: b.trigger_tipo, trigger_palabras: b.trigger_palabras,
-    config_widget: b.config_widget, activo: b.activo,
-  }).eq('id', req.params.id).eq('client_id', cid(req)).select().single();
+  const campos = ['agente_id', 'equipo_id', 'nombre', 'descripcion',
+    'trigger_tipo', 'trigger_palabras', 'config_widget', 'activo'];
+  const update = {};
+  for (const k of campos) if (k in b) update[k] = b[k];
+  const { data, error } = await admin.from('flujos').update(update)
+    .eq('id', req.params.id).eq('client_id', cid(req)).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });

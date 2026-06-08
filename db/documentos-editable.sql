@@ -1,0 +1,12 @@
+-- ============================================================================
+--  Documentos EDITABLES manualmente  (conocimiento + productos Shopify)
+--
+--  `bloqueado` = el documento fue editado a mano y manda su `contenido`:
+--   - La ingesta (ingest.js) vectoriza desde `contenido` (no re-extrae de la
+--     URL/archivo/Shopify), así la edición manual es la fuente de verdad.
+--   - La re-sincronización de Shopify NO lo borra ni lo sobreescribe, así tus
+--     cambios manuales sobre un producto sobreviven a futuras syncs.
+--
+--  Idempotente. Correr DESPUES de schema.sql.
+-- ============================================================================
+alter table public.documentos add column if not exists bloqueado boolean not null default false;
