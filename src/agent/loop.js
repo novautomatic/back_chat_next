@@ -27,6 +27,46 @@ function salidaResumida(obj) {
 // envuelto en texto/code-fences o truncado y nunca devuelve el JSON crudo.
 const extraerSalida = (content) => parseSalida(content);
 
+// ¿El texto del modelo ya es el contrato JSON {respuesta, productos, acciones}?
+// Si lo es, lo aceptamos tal cual. Si NO (el modelo respondio en prosa/markdown,
+// a veces con enlaces inline), hay que forzarlo por la tool terminal para no
+// perder los productos/enlaces (que de lo contrario terminan borrados del texto).
+function pareceContratoJson(content) {
+  const t = String(content ?? '').trim().replace(/^```(?:json)?\s*/i, '');
+  return t.startsWith('{') && /"respuesta"\s*:/.test(t);
+}
+
+// Fuerza una respuesta final ESTRUCTURADA via la tool terminal. Se usa cuando el
+// modelo intento cerrar en prosa (perdiendo productos) o cuando se agotaron los
+// pasos. Devuelve { final, usage }.
+async function forzarRespuestaFinal({ modelo, temperature, messages, tools }) {
+  const nudge =
+    'Entrega tu respuesta final AHORA llamando a la herramienta responder_al_usuario. ' +
+    'Cada producto/lana que menciones va en el arreglo "productos" con su enlace TAL CUAL aparece en el conocimiento ' +
+    '(no inventes ni cambies el dominio del enlace). El campo "respuesta" es solo texto natural, SIN enlaces ni markdown. ' +
+    'No uses otras herramientas.';
+  const completion = await openai.chat.completions.create({
+    model: modelo, temperature, tools,
+    tool_choice: { type: 'function', function: { name: TOOL_TERMINAL } },
+    messages: [...messages, { role: 'system', content: nudge }],
+  });
+  const msg = completion.choices?.[0]?.message;
+  const tc = (msg?.tool_calls || [])[0];
+  if (tc?.function?.name === TOOL_TERMINAL) {
+    const args = parseArgs(tc.function?.arguments);
+    return {
+      usage: completion.usage,
+      final: {
+        respuesta: args.respuesta ?? '',
+        productos: Array.isArray(args.productos) ? args.productos : [],
+        acciones: Array.isArray(args.acciones) ? args.acciones : [],
+      },
+    };
+  }
+  // Si aun asi no llamo la tool, rescatamos lo que haya en texto.
+  return { usage: completion.usage, final: extraerSalida(msg?.content || '') };
+}
+
 // agente: fila de `agentes`. messages: [system, ...historial] (ya incluye el
 // ultimo mensaje del usuario). ctx: { clientId, agenteId, conversacionId }.
 // onStep(nombreTool): callback para emitir progreso (Realtime).
@@ -65,10 +105,27 @@ export async function ejecutarLoop({ agente, messages, ctx, maxPasos = 4, onStep
 
     messages.push(msg); // turno del asistente (puede traer tool_calls)
 
-    // Sin tools: el modelo respondio en texto -> esa es la respuesta final
-    // (extraerSalida maneja el caso de agentes que devuelven JSON como texto).
+    // Sin tools: el modelo respondio en texto -> esa es la respuesta final.
     if (!toolCalls.length) {
-      final = extraerSalida(msg?.content || '');
+      const content = msg?.content || '';
+      // Camino feliz: el modelo ya entrego el contrato JSON {respuesta, productos, ...}.
+      if (pareceContratoJson(content)) { final = extraerSalida(content); break; }
+      // El modelo cerro en prosa/markdown (con los enlaces inline en el texto): lo
+      // forzamos por la tool terminal para recuperar los productos/enlaces en su
+      // campo estructurado. De lo contrario postproceso borra las URLs del texto y
+      // el usuario se queda SIN botones de producto.
+      const f0 = Date.now();
+      try {
+        const { final: forzado, usage: u2 } = await forzarRespuestaFinal({ modelo, temperature, messages, tools });
+        trazas.push({
+          paso, tipo: 'llm', nombre: modelo, modelo,
+          tokensPrompt: u2?.prompt_tokens, tokensCompletion: u2?.completion_tokens,
+          latenciaMs: Date.now() - f0, salida: { forzadoTerminal: true },
+        });
+        final = forzado;
+      } catch {
+        final = extraerSalida(content); // si el forzado falla, no perdemos el texto
+      }
       break;
     }
 
@@ -122,21 +179,18 @@ export async function ejecutarLoop({ agente, messages, ctx, maxPasos = 4, onStep
   // El agente decidio derivar: el orquestador ejecutara al especialista destino.
   if (delegacion) return { delegacion, trazas };
 
-  // Se agotaron los pasos sin tool terminal: forzar una respuesta final sin tools.
+  // Se agotaron los pasos sin tool terminal: forzar una respuesta final
+  // ESTRUCTURADA via la tool terminal (conserva productos/enlaces).
   if (!final) {
     const t0 = Date.now();
     try {
-      const completion = await openai.chat.completions.create({
-        model: modelo, temperature,
-        messages: [...messages, { role: 'system', content: 'Responde AHORA al usuario de forma final y util con lo que ya sabes. No uses herramientas.' }],
-      });
-      const msg = completion.choices?.[0]?.message;
+      const { final: forzado, usage } = await forzarRespuestaFinal({ modelo, temperature, messages, tools });
       trazas.push({
         paso: tope + 1, tipo: 'llm', nombre: modelo, modelo,
-        tokensPrompt: completion.usage?.prompt_tokens, tokensCompletion: completion.usage?.completion_tokens,
-        latenciaMs: Date.now() - t0, salida: { texto: resumirTexto(msg?.content || ''), forzado: true },
+        tokensPrompt: usage?.prompt_tokens, tokensCompletion: usage?.completion_tokens,
+        latenciaMs: Date.now() - t0, salida: { forzado: true, forzadoTerminal: true },
       });
-      final = extraerSalida(msg?.content || '');
+      final = forzado;
     } catch (e) {
       trazas.push({ paso: tope + 1, tipo: 'error', nombre: modelo, modelo, latenciaMs: Date.now() - t0, error: e.message });
       throw Object.assign(new Error(e.message), { trazas });
